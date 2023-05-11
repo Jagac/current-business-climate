@@ -1,0 +1,61 @@
+import praw
+import pandas as pd
+import psycopg2
+from sqlalchemy import create_engine
+from tqdm import tqdm
+import os
+from dotenv import load_dotenv
+load_dotenv()
+  
+def extract_reddit_data(subreddit_name):
+    reddit = praw.Reddit(
+                        client_id = os.getenv('reddit_client_id'), 
+                        client_secret = os.getenv('reddit_client_secret'), 
+                        user_agent = os.getenv('reddit_user_agent')
+                        )
+
+    all_comments = []
+    subreddit = reddit.subreddit(subreddit_name)
+    for post in subreddit.hot(limit=None):
+        if not post.stickied:
+            post.comments.replace_more(limit=0)
+            comments = post.comments.list() 
+            for comment in comments:
+                all_comments.append([comment.id, comment.body])
+
+    df = pd.DataFrame(all_comments, columns=['id', 'text'])
+
+    return df
+
+
+def load_reddit_data(df):
+    conn_string = 'postgresql://postgres:123@127.0.0.1/postgres'
+    db = create_engine(conn_string)
+    conn = db.connect()
+    
+    conn1 = psycopg2.connect(
+        database="postgres",
+        user='postgres', 
+        password='123', 
+        host='127.0.0.1', 
+        port= '5432'
+        )
+    
+    conn1.autocommit = True
+    cursor = conn1.cursor()
+
+    sql = '''CREATE TABLE IF NOT EXISTS reddit_data_raw(index varchar, id varchar, text varchar);'''
+    cursor.execute(sql)
+    df.to_sql('reddit_data_raw', conn, if_exists = 'append')
+    
+    conn1.commit()
+    conn1.close()
+      
+def main():
+    subreddit_names_list = ['startup', 'startups', 'smallbusiness', 'Business_Ideas']
+    for subreddit in tqdm(subreddit_names_list):
+        df = extract_reddit_data(subreddit)
+        load_reddit_data(df)
+        
+if __name__ == '__main__':
+    main()

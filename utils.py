@@ -1,5 +1,6 @@
 import re
 import langdetect as ld
+import psycopg2
 
 def remove_general(text):
     """Preprocessing function that removes links emojis and other general 
@@ -41,3 +42,23 @@ def detect_english(text):
         return ld.detect(text) == 'en'
     except:
         return False
+    
+def append_tables():
+    conn1 = psycopg2.connect(
+        database="postgres",
+        user='postgres', 
+        password='123', 
+        host='127.0.0.1', 
+        port= '5432'
+        )
+    
+    conn1.autocommit = True
+    cursor = conn1.cursor()
+
+    sql = '''SELECT * FROM reddit_data
+             UNION ALL
+             SELECT * FROM youtube_data;'''
+             
+    cursor.execute(sql)
+    conn1.commit()
+    conn1.close()

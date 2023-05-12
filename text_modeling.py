@@ -2,6 +2,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import pandas as pd
 import swifter
+from utils import append_tables
+append_tables()
 
 
 def sentiment_label(text):

@@ -55,8 +55,11 @@ def append_tables():
     conn1.autocommit = True
     cursor = conn1.cursor()
 
-    sql = '''SELECT * FROM reddit_data
-             UNION ALL
+    sql = '''
+            CREATE TABLE combined_data 
+            AS
+             SELECT * FROM reddit_data
+              UNION ALL
              SELECT * FROM youtube_data;'''
              
     cursor.execute(sql)

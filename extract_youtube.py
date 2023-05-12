@@ -10,6 +10,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def extract_youtube_data(youtube, video_id, all_comments=[], token=''):
+    """Recursively extracts youtube comments
+
+    Args:
+        youtube : use build from googleapiclient to interact with YouTube
+        video_id (str): id of a video, can be found when clicking the share button bellow a video
+        all_comments (list, optional): list that stores comments. Defaults to [].
+        token (str, optional): starting token. Defaults to ''.
+
+    Returns:
+        pd.Dataframe: dataframe with comments
+    """
     video_response=youtube.commentThreads().list(part='snippet',
                                                videoId=video_id,
                                                pageToken=token).execute()
@@ -26,6 +37,12 @@ def extract_youtube_data(youtube, video_id, all_comments=[], token=''):
         return df
 
 def load_youtube_data(df):
+    """Load data to a table in postgres, appends every time so it can be rerun
+
+    Args:
+        df (pd.Dataframe): dataframe to be loaded
+    """
+    
     conn_string = 'postgresql://postgres:123@127.0.0.1/postgres'
     db = create_engine(conn_string)
     conn = db.connect()
@@ -44,24 +61,25 @@ def load_youtube_data(df):
     sql = '''CREATE TABLE IF NOT EXISTS youtube_data(index varchar, text varchar, 
                                                         cleaned_text varchar, last_refresh date);'''
     cursor.execute(sql)
-    df.to_sql('youtube_data_raw', conn, if_exists = 'append')
+    df.to_sql('youtube_data', conn, if_exists = 'append')
     
     conn1.commit()
     conn1.close()
 
 def transform_youtube_data(df, video_id):
-    df['cleaned_text'] = df['text'].apply(lambda x: remove_general(x))
-    df['eng'] = df['cleaned_text'].apply(lambda x: detect_english(x))
-    indexNotEng = df[(df['eng'] != True)].index
-    df = df.drop(indexNotEng)
-    df = df.drop('eng', axis=1)
+    df2 = df.copy()
+    df2['cleaned_text'] = df2['text'].apply(lambda x: remove_general(x))
+    df2['eng'] = df2['cleaned_text'].apply(lambda x: detect_english(x))
+    indexNotEng = df2[(df2['eng'] != True)].index
+    df2 = df2.drop(indexNotEng)
+    df2 = df2.drop('eng', axis=1)
     now = datetime.now()
     current_date = now.strftime("%Y-%m-%d")
-    df['last_refresh'] = current_date
-    df['id'] = video_id
-    df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
-
-    return df
+    df2['last_refresh'] = current_date
+    df2['id'] = video_id
+    df2 = df2[['id', 'last_refresh', 'text', 'cleaned_text']]
+   
+    return df2
 
 def youtube_main():
     youtube = build('youtube', 'v3', developerKey=os.getenv('youtube_api_key'))
@@ -70,9 +88,9 @@ def youtube_main():
     
     for video in tqdm(videos):
         df = extract_youtube_data(youtube=youtube, video_id=video)
-        df = transform_youtube_data(df, video_id=video)
-        load_youtube_data(df)
-        
+        df_transformed = transform_youtube_data(df, video_id=video)
+        load_youtube_data(df_transformed)
+        df_transformed.to_csv('test.csv')
         
 if __name__ == '__main__':
     youtube_main()

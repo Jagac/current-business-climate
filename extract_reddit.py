@@ -4,8 +4,8 @@ import psycopg2
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import os
-from utils import detect_english, remove_general
 from datetime import datetime
+from utils import detect_english, remove_general
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -39,7 +39,7 @@ def extract_reddit_data(subreddit_name):
     return df
 
 def load_reddit_data(df):
-    """Load data to a raw table in postgres, appends every time so it can be rerun
+    """Load data to a table in postgres, appends every time so it can be rerun
 
     Args:
         df (pd.Dataframe): dataframe to be loaded
@@ -62,31 +62,32 @@ def load_reddit_data(df):
     sql = '''CREATE TABLE IF NOT EXISTS reddit_data(index varchar, id varchar, text varchar
                                                         cleaned_text varchar);'''
     cursor.execute(sql)
-    df.to_sql('reddit_data_raw', conn, if_exists = 'append')
+    df.to_sql('reddit_data', conn, if_exists = 'append')
     
     conn1.commit()
     conn1.close()
       
 
 def transform_reddit_data(df):
-    df['cleaned_text'] = df['text'].apply(lambda x: remove_general(x))
-    df['eng'] = df['cleaned_text'].apply(lambda x: detect_english(x))
-    indexNotEng = df[(df['eng'] != True)].index
-    df = df.drop(indexNotEng)
-    df = df.drop('eng', axis=1)
+    df2 = df.copy()
+    df2['cleaned_text'] = df2['text'].apply(lambda x: remove_general(x))
+    df2['eng'] = df2['cleaned_text'].apply(lambda x: detect_english(x))
+    indexNotEng = df2[(df2['eng'] != True)].index
+    df2 = df2.drop(indexNotEng)
+    df2 = df2.drop('eng', axis=1)
     now = datetime.now()
     current_date = now.strftime("%Y-%m-%d")
-    df['last_refresh'] = current_date
-    df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
+    df2['last_refresh'] = current_date
+    df2 = df2[['id', 'last_refresh', 'text', 'cleaned_text']]
     
-    return df
+    return df2
         
 def reddit_main():
     subreddit_names_list = ['startup', 'startups', 'smallbusiness', 'Business_Ideas']
     for subreddit in tqdm(subreddit_names_list):
         df = extract_reddit_data(subreddit)
-        df = transform_reddit_data(df)
-        load_reddit_data(df)
+        df_transformed = transform_reddit_data(df)
+        load_reddit_data(df_transformed)
         
 if __name__ == '__main__':
     reddit_main()

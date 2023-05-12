@@ -8,13 +8,6 @@ from hyperopt import fmin, tpe, hp, space_eval, Trials, partial
 import spacy
 import collections
 from sqlalchemy import create_engine
-from numba import jit
-
-from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
-import warnings
-
-warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
-warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 
 def import_data():
@@ -152,5 +145,24 @@ def main():
     df = import_data()
     embeddings = embed(df['text'].values)
     
-    
-main()
+    search_space = { "n_neighbors": hp.choice('n_neighbors', range(3, 50)),
+                 "n_components": hp.choice('n_components', range(3, 50)),
+                 "min_cluster_size": hp.choice('min_cluster_size', range(3, 50))}
+
+    lower_bound = 25
+    upper_bound = 50
+    max_eval = 30
+    best_params, best_clusters, trials = optimization(embeddings, search_space=search_space,
+                                                      lower_bound=lower_bound, upper_bound=upper_bound,
+                                                      total_evaluations=max_eval)
+    print(trials.best_trial)
+
+    cluster_dict = {'cluster label': best_clusters}
+
+    df_2 = df.copy()
+    for key, value in cluster_dict.items():
+        df_2[['id', 'text', 'cleaned_text', 'sentiment']] = value.labels_
+
+
+if __name__ == "__main__":
+    main()

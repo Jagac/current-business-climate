@@ -4,36 +4,25 @@ import psycopg2
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import os
+from utils import detect_english, remove_general
 from dotenv import load_dotenv
 load_dotenv()
 
-def extract_youtube_data(video_id):
-    youtube = build('youtube','v3',
-                    developerKey=os.getenv('youtube_api_key'))
-
-    video_response=youtube.commentThreads().list(
-      part='snippet, replies',
-      videoId=f"{video_id}"
-    ).execute()
+def extract_youtube_data(youtube, video_id, all_comments=[], token=''):
+    video_response=youtube.commentThreads().list(part='snippet',
+                                               videoId=video_id,
+                                               pageToken=token).execute()
+  
+    for item in video_response['items']:
+        comment = item['snippet']['topLevelComment']
+        text = comment['snippet']['textDisplay']
+        all_comments.append(text)
     
-    all_comments = []
-    while video_response:
-        for i, item in enumerate(video_response["items"]):
-            comment = item["snippet"]["topLevelComment"]
-            text = comment["snippet"]["textDisplay"]
-            all_comments.append([text])
-          
-        if 'nextPageToken' in video_response:
-            video_response = youtube.commentThreads().list(
-                    part = 'snippet,replies',
-                    videoId=f"{video_id}"
-                ).execute()
-        else:
-            break
-      
-    df = pd.DataFrame(all_comments, columns=['text'])
-    
-    return df
+    if "nextPageToken" in video_response: 
+        return extract_youtube_data(youtube, video_id, all_comments, video_response['nextPageToken'])
+    else:
+        df = pd.DataFrame(all_comments, columns=['text'])
+        return df
 
 def load_youtube_data(df):
     conn_string = 'postgresql://postgres:123@127.0.0.1/postgres'
@@ -51,7 +40,7 @@ def load_youtube_data(df):
     conn1.autocommit = True
     cursor = conn1.cursor()
 
-    sql = '''CREATE TABLE IF NOT EXISTS youtube_data_raw(index varchar, text varchar);'''
+    sql = '''CREATE TABLE IF NOT EXISTS youtube_data_raw(index varchar, text varchar, cleaned_text varchar);'''
     cursor.execute(sql)
     df.to_sql('youtube_data_raw', conn, if_exists = 'append')
     
@@ -60,11 +49,20 @@ def load_youtube_data(df):
 
 
 def main():
-    videos = ['Vp0LD9jgeV8', 'FgzyLoSkL5k', 'Qa_4c9zrxf0', 'RAjZ8EGuqV4', 
-              'jLJTVPKrIH0', 'MdKuJtEJT2A']
+    youtube = build('youtube', 'v3', developerKey=os.getenv('youtube_api_key'))
+    videos = ['Vp0LD9jgeV8','Qa_4c9zrxf0', 'RAjZ8EGuqV4', 
+              'jLJTVPKrIH0', 'MdKuJtEJT2A', 'FgzyLoSkL5k']
+    
     for video in tqdm(videos):
-        df = extract_youtube_data(video)
+        df = extract_youtube_data(youtube=youtube, video_id=video)
+        df['cleaned_text'] = df['text'].apply(lambda x: remove_general(x))
+        df['eng'] = df['cleaned_text'].apply(lambda x: detect_english(x))
+        indexNotEng = df[(df['eng'] != True)].index
+        df = df.drop(indexNotEng)
+        df = df.drop('eng', axis=1)
         load_youtube_data(df)
+        
+        
         
 if __name__ == '__main__':
     main()

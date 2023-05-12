@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from tqdm import tqdm
 import os
 from utils import detect_english, remove_general
+import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -58,7 +59,7 @@ def load_reddit_data(df):
     conn1.autocommit = True
     cursor = conn1.cursor()
 
-    sql = '''CREATE TABLE IF NOT EXISTS reddit_data_raw(index varchar, id varchar, text varchar
+    sql = '''CREATE TABLE IF NOT EXISTS reddit_data(index varchar, id varchar, text varchar
                                                         cleaned_text varchar);'''
     cursor.execute(sql)
     df.to_sql('reddit_data_raw', conn, if_exists = 'append')
@@ -67,10 +68,7 @@ def load_reddit_data(df):
     conn1.close()
       
       
-
-    
-    
-def main():
+def reddit_main():
     subreddit_names_list = ['startup', 'startups', 'smallbusiness', 'Business_Ideas']
     for subreddit in tqdm(subreddit_names_list):
         df = extract_reddit_data(subreddit)
@@ -79,8 +77,11 @@ def main():
         indexNotEng = df[(df['eng'] != True)].index
         df = df.drop(indexNotEng)
         df = df.drop('eng', axis=1)
-        
+        now = datetime.now()
+        current_date = now.strftime("%Y-%m-%d")
+        df['last_refresh'] = current_date
+        df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
         load_reddit_data(df)
         
 if __name__ == '__main__':
-    main()
+    reddit_main()

@@ -4,6 +4,7 @@ import psycopg2
 from sqlalchemy import create_engine
 from tqdm import tqdm
 import os
+import datetime
 from utils import detect_english, remove_general
 from dotenv import load_dotenv
 load_dotenv()
@@ -40,7 +41,8 @@ def load_youtube_data(df):
     conn1.autocommit = True
     cursor = conn1.cursor()
 
-    sql = '''CREATE TABLE IF NOT EXISTS youtube_data_raw(index varchar, text varchar, cleaned_text varchar);'''
+    sql = '''CREATE TABLE IF NOT EXISTS youtube_data(index varchar, text varchar, 
+                                                        cleaned_text varchar, last_refresh date);'''
     cursor.execute(sql)
     df.to_sql('youtube_data_raw', conn, if_exists = 'append')
     
@@ -48,7 +50,7 @@ def load_youtube_data(df):
     conn1.close()
 
 
-def main():
+def youtube_main():
     youtube = build('youtube', 'v3', developerKey=os.getenv('youtube_api_key'))
     videos = ['Vp0LD9jgeV8','Qa_4c9zrxf0', 'RAjZ8EGuqV4', 
               'jLJTVPKrIH0', 'MdKuJtEJT2A', 'FgzyLoSkL5k']
@@ -60,12 +62,17 @@ def main():
         indexNotEng = df[(df['eng'] != True)].index
         df = df.drop(indexNotEng)
         df = df.drop('eng', axis=1)
+        now = datetime.now()
+        current_date = now.strftime("%Y-%m-%d")
+        df['last_refresh'] = current_date
+        df['id'] = video
+        df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
         load_youtube_data(df)
         
         
         
 if __name__ == '__main__':
-    main()
+    youtube_main()
   
   
  

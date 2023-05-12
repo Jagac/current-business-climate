@@ -16,22 +16,23 @@ def extract_youtube_data(video_id):
       videoId=f"{video_id}"
     ).execute()
     
+    all_comments = []
     while video_response:
-      all_comments = []
-      for i, item in enumerate(video_response["items"]):
-          comment = item["snippet"]["topLevelComment"]
-          text = comment["snippet"]["textDisplay"]
-          all_comments.append([text])
+        for i, item in enumerate(video_response["items"]):
+            comment = item["snippet"]["topLevelComment"]
+            text = comment["snippet"]["textDisplay"]
+            all_comments.append([text])
           
-          if 'nextPageToken' in video_response:
+        if 'nextPageToken' in video_response:
             video_response = youtube.commentThreads().list(
                     part = 'snippet,replies',
                     videoId=f"{video_id}"
                 ).execute()
-          else:
-              break
+        else:
+            break
       
     df = pd.DataFrame(all_comments, columns=['text'])
+    
     return df
 
 def load_youtube_data(df):
@@ -59,8 +60,8 @@ def load_youtube_data(df):
 
 
 def main():
-    videos = ['Vp0LD9jgeV8', 'MdKuJtEJT2A', 'FgzyLoSkL5k', 'Qa_4c9zrxf0', 'RAjZ8EGuqV4', 
-              'jLJTVPKrIH0']
+    videos = ['Vp0LD9jgeV8', 'FgzyLoSkL5k', 'Qa_4c9zrxf0', 'RAjZ8EGuqV4', 
+              'jLJTVPKrIH0', 'MdKuJtEJT2A']
     for video in tqdm(videos):
         df = extract_youtube_data(video)
         load_youtube_data(df)
@@ -68,3 +69,5 @@ def main():
 if __name__ == '__main__':
     main()
   
+  
+ 

@@ -49,6 +49,19 @@ def load_youtube_data(df):
     conn1.commit()
     conn1.close()
 
+def transform_youtube_data(df, video_id):
+    df['cleaned_text'] = df['text'].apply(lambda x: remove_general(x))
+    df['eng'] = df['cleaned_text'].apply(lambda x: detect_english(x))
+    indexNotEng = df[(df['eng'] != True)].index
+    df = df.drop(indexNotEng)
+    df = df.drop('eng', axis=1)
+    now = datetime.now()
+    current_date = now.strftime("%Y-%m-%d")
+    df['last_refresh'] = current_date
+    df['id'] = video_id
+    df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
+
+    return df
 
 def youtube_main():
     youtube = build('youtube', 'v3', developerKey=os.getenv('youtube_api_key'))
@@ -57,18 +70,8 @@ def youtube_main():
     
     for video in tqdm(videos):
         df = extract_youtube_data(youtube=youtube, video_id=video)
-        df['cleaned_text'] = df['text'].apply(lambda x: remove_general(x))
-        df['eng'] = df['cleaned_text'].apply(lambda x: detect_english(x))
-        indexNotEng = df[(df['eng'] != True)].index
-        df = df.drop(indexNotEng)
-        df = df.drop('eng', axis=1)
-        now = datetime.now()
-        current_date = now.strftime("%Y-%m-%d")
-        df['last_refresh'] = current_date
-        df['id'] = video
-        df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
+        df = transform_youtube_data(df, video_id=video)
         load_youtube_data(df)
-        
         
         
 if __name__ == '__main__':

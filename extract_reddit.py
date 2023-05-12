@@ -67,20 +67,25 @@ def load_reddit_data(df):
     conn1.commit()
     conn1.close()
       
-      
+
+def transform_reddit_data(df):
+    df['cleaned_text'] = df['text'].apply(lambda x: remove_general(x))
+    df['eng'] = df['cleaned_text'].apply(lambda x: detect_english(x))
+    indexNotEng = df[(df['eng'] != True)].index
+    df = df.drop(indexNotEng)
+    df = df.drop('eng', axis=1)
+    now = datetime.now()
+    current_date = now.strftime("%Y-%m-%d")
+    df['last_refresh'] = current_date
+    df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
+    
+    return df
+        
 def reddit_main():
     subreddit_names_list = ['startup', 'startups', 'smallbusiness', 'Business_Ideas']
     for subreddit in tqdm(subreddit_names_list):
         df = extract_reddit_data(subreddit)
-        df['cleaned_text'] = df['text'].apply(lambda x: remove_general(x))
-        df['eng'] = df['cleaned_text'].apply(lambda x: detect_english(x))
-        indexNotEng = df[(df['eng'] != True)].index
-        df = df.drop(indexNotEng)
-        df = df.drop('eng', axis=1)
-        now = datetime.now()
-        current_date = now.strftime("%Y-%m-%d")
-        df['last_refresh'] = current_date
-        df = df[['id', 'last_refresh', 'text', 'cleaned_text']]
+        df = transform_reddit_data(df)
         load_reddit_data(df)
         
 if __name__ == '__main__':

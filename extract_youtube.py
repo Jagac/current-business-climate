@@ -58,8 +58,8 @@ def load_youtube_data(df):
     conn1.autocommit = True
     cursor = conn1.cursor()
 
-    sql = '''CREATE TABLE IF NOT EXISTS youtube_data(index varchar, text varchar, 
-                                                        cleaned_text varchar, last_refresh date);'''
+    sql = '''CREATE TABLE IF NOT EXISTS youtube_data(index varchar, id varchar, last_refresh date,
+                                                    text varchar, cleaned_text varchar);'''
     cursor.execute(sql)
     df.to_sql('youtube_data', conn, if_exists = 'append')
     

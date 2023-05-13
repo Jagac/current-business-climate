@@ -56,7 +56,7 @@ def append_tables():
     cursor = conn1.cursor()
 
     sql = '''
-            CREATE TABLE combined_data 
+            CREATE TABLE IF NOT EXISTS combined_data 
             AS
              SELECT * FROM reddit_data
               UNION ALL

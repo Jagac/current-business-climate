@@ -59,8 +59,8 @@ def load_reddit_data(df):
     conn1.autocommit = True
     cursor = conn1.cursor()
 
-    sql = '''CREATE TABLE IF NOT EXISTS reddit_data(index varchar, id varchar, text varchar
-                                                        cleaned_text varchar);'''
+    sql = '''CREATE TABLE IF NOT EXISTS reddit_data(index varchar, id varchar, last_refresh date,
+                                                    text varchar, cleaned_text varchar);'''
     cursor.execute(sql)
     df.to_sql('reddit_data', conn, if_exists = 'append')
     

@@ -12,6 +12,11 @@ from gensim.models.coherencemodel import CoherenceModel
 from umap import UMAP
 from hdbscan import HDBSCAN
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+tokenizer = AutoTokenizer.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
+model = AutoModelForSequenceClassification.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest').to(device)
+
+
 def load_data():
     """Loads a combined table of both sources
 
@@ -23,6 +28,7 @@ def load_data():
     db = create_engine(conn_string)
     conn = db.connect()
     df = pd.read_sql_query("SELECT * FROM combined_data;", con=conn)
+    print(f"--- Loaded {df.shape} ---")
     
     return df
     
@@ -31,24 +37,20 @@ def sentiment_label(text):
     """Uses a pretrained model from HuggingFace to label sentiments
 
     Args:
-        text (str): _text to be labeled
+        text (str): text to be labeled
 
     Returns:
         int : 0 -> neg, 1 -> neut, 2 -> pos
     """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
-    tokenizer = AutoTokenizer.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
-    model = AutoModelForSequenceClassification.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest').to(device)
     encoded_input = tokenizer(text, padding=True, truncation=True)
-    #sentiment_model = torch.compile(model) torch 2.0 feature doesn'w work on windows
+    #sentiment_model = torch.compile(model) torch 2.0 feature doesn't seem to work on windows
     tokens = tokenizer.encode(encoded_input, return_tensors='pt').to(device)
     result = model(tokens)
     
     return int(torch.argmax(result.logits))
 
 
-def sentiment_main(df):
+def apply_sentiment_model(df):
     """Applies the sentiment label function
 
     Args:
@@ -58,6 +60,7 @@ def sentiment_main(df):
         pd.Dataframe: same table with an additional sentiment column with associated label
     """
     df2 = df.copy()
+    print("--- Applying roBERTa ---")
     df2['sentiment'] = df2['cleaned_text'].swifter.apply(lambda x: sentiment_label(x))
     df2.loc[df2["sentiment"] == 0, "sentiment"] = "Negative"
     df2.loc[df2["sentiment"] == 1, "sentiment"] = "Neutral"
@@ -123,11 +126,14 @@ def tune_topic_model(tune = False):
         print("Params: ")
         for key, value in trial.params.items():
             print("    {}: {}".format(key, value))
-    
-def apply_topic_model():
-    umap_model = UMAP(n_neighbors= 1, n_components=1, 
+
+def apply_topic_model(df, n_neighbors, n_components, min_cluster_size, min_samples):
+    """Set hyperparams based on the tuning results. Have to manually assign a topic name using get_topic_info later
+    """
+    df2 = df.copy()
+    umap_model = UMAP(n_neighbors= n_neighbors, n_components=n_components, 
                       metric='cosine', low_memory=False)
-    hdbscan_model = HDBSCAN(min_cluster_size=1, min_samples=1,
+    hdbscan_model = HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples,
                             metric='euclidean', prediction_data=True)
 
     sentence_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -138,14 +144,16 @@ def apply_topic_model():
     topic_model.reduce_topics(docs, nr_topics=10) 
     topics, probs = topic_model.transform(docs, embeddings)
   
-    df = pd.DataFrame({"docs": docs, "topics": topics})
-    print(df)
+    df2 = pd.DataFrame({"docs": docs, "topics": topics})
     print(topic_model.get_topic_info())
+    print(df2.shape)
     
-    return df
+    return df2
     
 if __name__ == "__main__":
     df = load_data()
+    df_sentiment = apply_sentiment_model(df)
     docs = df.cleaned_text.to_list()
-    df_sentiment = sentiment_main(df)
+    tune_topic_model(tune=False)
+    topics_df = apply_topic_model(df, 42, 19, 49, 46)
     

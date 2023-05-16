@@ -89,5 +89,5 @@ def reddit_main():
         df_transformed = transform_reddit_data(df)
         load_reddit_data(df_transformed)
         
-if __name__ == '__main__':
-    reddit_main()
+# if __name__ == '__main__':
+#     reddit_main()

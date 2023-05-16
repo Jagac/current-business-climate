@@ -5,6 +5,7 @@ import swifter
 import optuna
 import gensim.corpora as corpora
 from utils import append_tables
+from utils import load_data
 from sqlalchemy import create_engine
 from bertopic import BERTopic
 from sentence_transformers import SentenceTransformer
@@ -12,27 +13,12 @@ from gensim.models.coherencemodel import CoherenceModel
 from umap import UMAP
 from hdbscan import HDBSCAN
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-tokenizer = AutoTokenizer.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
-model = AutoModelForSequenceClassification.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest').to(device)
 
 
-def load_data():
-    """Loads a combined table of both sources
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# tokenizer = AutoTokenizer.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest')
+# model = AutoModelForSequenceClassification.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment-latest').to(device)
 
-    Returns:
-        pd.DataFrame: dataframe containing merged data
-    """
-    append_tables()
-    conn_string = 'postgresql://postgres:123@127.0.0.1/postgres'
-    db = create_engine(conn_string)
-    conn = db.connect()
-    df = pd.read_sql_query("SELECT * FROM combined_data;", con=conn)
-    print(f"--- Loaded {df.shape} ---")
-    
-    return df
-    
-    
 def sentiment_label(text):
     """Uses a pretrained model from HuggingFace to label sentiments
 
@@ -152,8 +138,8 @@ def apply_topic_model(df, n_neighbors, n_components, min_cluster_size, min_sampl
     
 if __name__ == "__main__":
     df = load_data()
-    df_sentiment = apply_sentiment_model(df)
-    docs = df.cleaned_text.to_list()
-    tune_topic_model(tune=False)
-    topics_df = apply_topic_model(df, 42, 19, 49, 46)
+    # df_sentiment = apply_sentiment_model(df)
+    # docs = df.cleaned_text.to_list()
+    # tune_topic_model(tune=False)
+    # topics_df = apply_topic_model(df, 42, 19, 49, 46)
     

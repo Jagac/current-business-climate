@@ -1,6 +1,8 @@
 import re
 import langdetect as ld
 import psycopg2
+from sqlalchemy import create_engine
+import pandas as pd
 
 def remove_general(text):
     """Preprocessing function that removes links emojis and other general 
@@ -65,3 +67,18 @@ def append_tables():
     cursor.execute(sql)
     conn1.commit()
     conn1.close()
+    
+def load_data():
+    """Loads a combined table of both sources
+
+    Returns:
+        pd.DataFrame: dataframe containing merged data
+    """
+    append_tables()
+    conn_string = 'postgresql://postgres:123@127.0.0.1/postgres'
+    db = create_engine(conn_string)
+    conn = db.connect()
+    df = pd.read_sql_query("SELECT * FROM combined_data;", con=conn)
+    print(f"--- Loaded {df.shape} ---")
+    
+    return df

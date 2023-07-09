@@ -4,14 +4,6 @@ The idea behind this project is to understand current topics and sentiments in b
 Current discussions are pulled from related subreddits and comments from Forbes YouTube video comments.
 In the future I plan to add a news scraper. This project uses the BERT family of models which is not the most cutting edge 
 
-
-
-## Getting Started
-
-These instructions will give you a copy of the project up and running on
-your local machine for development and testing purposes. 
-The code can easily be changed to fit your purpose.
-
 ### Prerequisites
 
 If working on windows, visual studio community with C++ extension may be required for the modeling script to run (I believe this is due to the HDBSCAN package).
